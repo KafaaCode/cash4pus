@@ -26,23 +26,55 @@ class CurdGamesController extends Controller
 
         try {
             $orderProvider = $provider->name;
-            if ($orderProvider == 'soud') {
-                $url = 'https://api.saud-card.com/client/api/products';
-            } elseif ($orderProvider == 'yassen') {
-                $url = 'https://api.yassen-card.com/client/api/products';
-            }
-            // $apiUrl = 'https://api.saud-card.com/client/api/products';
             $token = $provider->api_key;
 
-            $response = Http::withHeaders([
-                'api-token' => $provider->api_key,
-            ])->get($url);
+            if ($orderProvider == 'soud') {
+                $url = 'https://api.saud-card.com/client/api/products';
+                $headers = ['api-token' => $token];
+                $response = Http::withHeaders($headers)->get($url);
+                $data = $response->json();
 
-            if ($response->successful()) {
-                return response()->json($response->json());
+            } elseif ($orderProvider == 'yassen') {
+                $url = 'https://api.yassen-card.com/client/api/products';
+                $headers = ['api-token' => $token];
+                $response = Http::withHeaders($headers)->get($url);
+                $data = $response->json();
+
+            } elseif ($orderProvider == 'zain') {
+                $url = 'https://zain-market.com/api/products';
+                $headers = ['X-API-TOKEN' => $token];
+                $response = Http::withHeaders($headers)->post($url);
+
+                if (!$response->successful() || !$response->json('success')) {
+                    return response()->json(['error' => 'Zain API failed'], 500);
+                }
+
+                $games = $response->json('games');
+                $data = collect($games)->map(function ($item) {
+                    return [
+                        'id' => $item['id'],
+                        'name' => $item['slug'], // يمكنك تعديلها حسب الحاجة
+                        'price' => $item['price_qty'],
+                        'params' => [
+                            $item['need_id_player'] ? 'معرف اللاعب مطلوب' : '',
+                            $item['need_name_player'] ? 'اسم اللاعب مطلوب' : '',
+                        ],
+                        'category_name' => 'Zain Products', // يمكن تعديله إن توفر التصنيف
+                        'available' => true,
+                        'qty_values' => null,
+                        'product_type' => $item['have_packages'] ? 'package' : 'single',
+                        'parent_id' => null,
+                        'base_price' => $item['price_qty'],
+                        'category_img' => null,
+                    ];
+                })->toArray();
+
             } else {
-                return response()->json(['error' => $response], 500);
+                return response()->json(['error' => 'Unsupported provider'], 400);
             }
+
+            return response()->json($data);
+
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
@@ -125,8 +157,6 @@ class CurdGamesController extends Controller
             if ($request->hasFile('background_package')) {
                 $game->addMedia($request->file('background_package'))->toMediaCollection('background_package');
             }
-
-
 
             DB::commit();
             return redirect()

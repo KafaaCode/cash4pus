@@ -119,17 +119,9 @@ class GameController extends Controller
             
                     if ($resault['success']) {
                         $providerId = $provider->id;
-            
-                        if ($method == 'soud' || $method == 'yassen') {
-                            $orderId = $resault['res']->json('data.order_id');
-                            $sprice = $resault['res']->json('data.price');
-                        }
-            
-                        Log::info("تم تنفيذ الطلب بنجاح", [
-                            'game_id' => $game->id,
-                            'provider' => $method,
-                            'response' => $resault['res']->json()
-                        ]);
+                        $orderId = $resault['res']->json('data.order_id');
+                        $sprice = $resault['res']->json('data.price');
+
                     } else {
                         Log::error("فشل تنفيذ الطلب من المزود", [
                             'game_id' => $game->id,
